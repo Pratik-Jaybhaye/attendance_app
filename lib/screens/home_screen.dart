@@ -3,6 +3,8 @@ import 'login_screen.dart';
 import 'self_attendance_screen.dart';
 import 'update_profile_photo_screen.dart';
 import 'select_classes_screen.dart';
+import 'attendance_logs_screen.dart';
+import 'about_us_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final String email;
@@ -92,10 +94,11 @@ class _HomeScreenState extends State<HomeScreen> {
   /// Endpoint: GET /api/attendance/logs
   /// This should fetch attendance history/logs
   void _viewAttendanceLogs() {
-    // TODO: Navigate to attendance logs screen
-    // and fetch logs from backend
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Attendance Logs - Coming Soon')),
+    // Navigate to attendance logs screen with user email
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => AttendanceLogsScreen(email: widget.email),
+      ),
     );
   }
 
@@ -126,21 +129,10 @@ class _HomeScreenState extends State<HomeScreen> {
   /// Endpoint: GET /api/about
   /// This should fetch about us information from backend
   void _handleAboutUs() {
-    // TODO: Navigate to About Us screen
-    // and fetch content from backend
-    // Example API structure:
-    // GET /api/about
-    // Response:
-    // {
-    //   "title": "About AI-FRAS",
-    //   "content": "About us content...",
-    //   "version": "1.0.0",
-    //   "contactEmail": "support@example.com"
-    // }
-    ScaffoldMessenger.of(
+    // Navigate to About Us screen
+    Navigator.of(
       context,
-    ).showSnackBar(const SnackBar(content: Text('About Us - Coming Soon')));
-    Navigator.pop(context); // Close drawer
+    ).push(MaterialPageRoute(builder: (context) => const AboutUsScreen()));
   }
 
   /// TODO: Connect to Backend API
