@@ -1,14 +1,13 @@
 import 'package:flutter/material.dart';
 import 'screens/login_screen.dart';
 import 'screens/select_classes_screen.dart';
-import 'screens/class_list_screen.dart';
-import 'screens/select_period_screen.dart';
-import 'screens/take_attendance_screen.dart';
-import 'screens/view_attendance_screen.dart';
 import 'models/class.dart';
-import 'models/period.dart';
+import 'services/database_helper.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  final db = await DatabaseHelper().database;
+  print("DATABASE PATH: ${db.path}");
   runApp(const MyApp());
 }
 

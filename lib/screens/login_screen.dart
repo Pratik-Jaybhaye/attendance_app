@@ -25,10 +25,10 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _handleLogin() async {
-    String email = _usernameController.text;
+    String username = _usernameController.text.trim();
     String password = _passwordController.text;
 
-    if (email.isEmpty || password.isEmpty) {
+    if (username.isEmpty || password.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please fill in all fields')),
       );
@@ -40,16 +40,13 @@ class _LoginScreenState extends State<LoginScreen> {
     });
 
     try {
-      print('DEBUG: Attempting login with email: $email');
-      // Call AuthService.login with email and password
-      final token = await AuthService.login(
-        _usernameController.text,
-        _passwordController.text,
-      );
+      print('DEBUG: Attempting login with username: $username');
+      // Call AuthService.login with username and password
+      final user = await AuthService.login(username, password);
 
-      print('DEBUG: Login result: $token');
+      print('DEBUG: Login result: $user');
 
-      if (token != null) {
+      if (user != null) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -60,7 +57,9 @@ class _LoginScreenState extends State<LoginScreen> {
         // Navigate to home screen on successful login
         if (mounted) {
           Navigator.of(context).pushReplacement(
-            MaterialPageRoute(builder: (context) => HomeScreen(email: email)),
+            MaterialPageRoute(
+              builder: (context) => HomeScreen(email: username),
+            ),
           );
         }
       } else {
@@ -68,7 +67,9 @@ class _LoginScreenState extends State<LoginScreen> {
         print('DEBUG: Login failed - Invalid credentials');
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Invalid credentials'),
+            content: Text(
+              'Invalid credentials. Please check username and password.',
+            ),
             backgroundColor: Colors.red,
           ),
         );
@@ -171,7 +172,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   child: TextField(
                     controller: _usernameController,
                     decoration: InputDecoration(
-                      hintText: 'Username',
+                      hintText: 'Username (Email or Mobile)',
                       hintStyle: const TextStyle(
                         color: Color(0xFFAFAFC3),
                         fontSize: 16,

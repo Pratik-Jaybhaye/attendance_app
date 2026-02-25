@@ -51,6 +51,10 @@ dependencies:
   http: ^1.2.0
   flutter_secure_storage: ^9.0.0
   geolocator: ^10.0.0
+  
+  # Local database
+  sqflite: ^2.2.8+4
+  path: ^1.8.3
 
 dev_dependencies:
   flutter_test:
