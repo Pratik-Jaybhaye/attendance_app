@@ -1,16 +1,40 @@
 import 'dart:math';
 import 'dart:ui';
 import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart';
+import 'face_recognition_config.dart';
 
 /// Anti-Spoofing Detection Service
-/// Detects fake faces (photos, videos, masks) using texture analysis
+/// Detects fake faces (photos, videos, masks) using multiple texture analysis techniques
+///
+/// Spoof Detection Methods:
+/// 1. Texture Analysis - Detects photo printing artifacts using Local Binary Patterns (LBP)
+/// 2. Landmark Stability - Real faces have consistent, complete landmarks
+/// 3. Frequency Domain - Detect Moiré patterns from printed photos using Laplacian filter
+/// 4. Eye Reflection - Real eyes have specular highlights, fake faces don't
+/// 5. Motion Consistency - Real faces move naturally across frames
+///
+/// Weighted Scoring: Final spoof score (0-1) based on weighted average of all methods
+/// Thresholds: 0.5+ = likely spoofed, <0.3 = likely real, 0.3-0.5 = uncertain
 class AntiSpoofingService {
-  // Spoof detection thresholds
-  static const double SPOOF_THRESHOLD = 0.5; // 0-1, higher = more likely fake
-  static const double REAL_FACE_THRESHOLD = 0.3;
+  /// Initialize spoof detection service
+  AntiSpoofingService() {
+    print('[AntiSpoofing] Service initialized');
+    print(
+      '[AntiSpoofing] Spoof Threshold: ${(FaceRecognitionConfig.spoofThreshold * 100).toStringAsFixed(0)}%',
+    );
+    print(
+      '[AntiSpoofing] Real Face Threshold: ${(FaceRecognitionConfig.realFaceThreshold * 100).toStringAsFixed(0)}%',
+    );
+  }
 
   /// Detect if face is spoofed (fake/fake presentation)
   /// Returns spoof score: 0 = definitely real, 1 = definitely spoofed
+  ///
+  /// Analysis:
+  /// - Spoof Score 0.0-0.3: SAFE - Very likely real face
+  /// - Spoof Score 0.3-0.5: MEDIUM - Uncertain, manual review recommended
+  /// - Spoof Score 0.5-0.8: HIGH - Probably spoofed
+  /// - Spoof Score 0.8-1.0: CRITICAL - Very likely spoofed, REJECT
   Map<String, dynamic> detectSpoof(
     Face face, {
     required List<int> imagePixels,
@@ -20,7 +44,7 @@ class AntiSpoofingService {
     try {
       final scores = <String, double>{};
 
-      // 1. Texture Analysis - Check for photo printing artifacts
+      // Apply all spoof detection methods
       scores['textureScore'] = _analyzeTexturePatterns(
         imagePixels,
         face.boundingBox,
@@ -28,38 +52,30 @@ class AntiSpoofingService {
         imageHeight,
       );
 
-      // 2. Landmark Stability - Real faces have stable landmarks
       scores['landmarkScore'] = _analyzeLandmarkStability(face);
-
-      // 3. Frequency Domain Analysis - Detect Moiré patterns from printed photos
       scores['frequencyScore'] = _analyzeFrequencyDomain(
         imagePixels,
         face.boundingBox,
         imageWidth,
         imageHeight,
       );
-
-      // 4. Eye Reflection Analysis - Real eyes have specular highlights
       scores['eyeReflectionScore'] = _analyzeEyeReflections(face);
-
-      // 5. Motion Consistency - Detect if face is moving naturally
       scores['motionScore'] = _analyzeMotionConsistency(face);
 
-      // Calculate final spoof score (weighted average)
+      // Calculate final spoof score (weighted average using configured weights)
       final spoofScore = _calculateFinalSpoofScore(scores);
-
-      final isSpoofed = spoofScore >= SPOOF_THRESHOLD;
+      final isSpoofed = spoofScore >= FaceRecognitionConfig.spoofThreshold;
 
       return {
         'isSpoofed': isSpoofed,
-        'spoofScore': spoofScore, // 0-1
+        'spoofScore': spoofScore,
         'confidence': 1.0 - (spoofScore - 0.5).abs(),
         'breakdown': scores,
         'riskLevel': _getRiskLevel(spoofScore),
         'recommendation': _getRecommendation(spoofScore),
       };
     } catch (e) {
-      print('Error in spoof detection: $e');
+      print('[AntiSpoofing] Error: $e');
       return {
         'isSpoofed': false,
         'spoofScore': 0.0,
@@ -250,21 +266,15 @@ class AntiSpoofingService {
     }
   }
 
-  /// Calculate final spoof score (weighted average)
+  /// Calculate final spoof score using configured weights
+  /// Weighted average of all detection methods
+  /// Uses weights from FaceRecognitionConfig.spoofWeights
   double _calculateFinalSpoofScore(Map<String, double> scores) {
-    const weights = {
-      'textureScore': 0.3,
-      'landmarkScore': 0.25,
-      'frequencyScore': 0.25,
-      'eyeReflectionScore': 0.1,
-      'motionScore': 0.1,
-    };
-
     double weightedSum = 0.0;
     double totalWeight = 0.0;
 
     scores.forEach((key, score) {
-      final weight = weights[key] ?? 0.0;
+      final weight = FaceRecognitionConfig.spoofWeights[key] ?? 0.0;
       weightedSum += score * weight;
       totalWeight += weight;
     });
@@ -273,6 +283,7 @@ class AntiSpoofingService {
   }
 
   /// Get risk level from spoof score
+  /// Used to categorize threat level for UI display
   String _getRiskLevel(double spoofScore) {
     if (spoofScore >= 0.8) {
       return 'CRITICAL'; // Very likely spoofed
@@ -287,9 +298,10 @@ class AntiSpoofingService {
     }
   }
 
-  /// Get recommendation based on spoof score
+  /// Get recommendation message based on spoof score
+  /// Used for user feedback
   String _getRecommendation(double spoofScore) {
-    if (spoofScore >= SPOOF_THRESHOLD) {
+    if (spoofScore >= FaceRecognitionConfig.spoofThreshold) {
       return '⚠️ REJECTED: Possible fake face detected. Please try again with your actual face.';
     } else {
       return '✓ ACCEPTED: Face verified as genuine';

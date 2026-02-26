@@ -61,6 +61,13 @@ class _SelfAttendanceScreenState extends State<SelfAttendanceScreen> {
   bool _cameraWarmed = false;
   late DateTime _initializationTime;
 
+  // Camera settings
+  bool _torchEnabled = false; // Flash/torch mode for low-light conditions
+  double _zoomLevel = 1.0; // Camera zoom level (1.0 = no zoom)
+  CameraLensDirection _selectedLens =
+      CameraLensDirection.front; // Track selected camera (front or back)
+  List<CameraDescription> _availableCameras = []; // Store available cameras
+
   @override
   void initState() {
     super.initState();
@@ -113,6 +120,16 @@ class _SelfAttendanceScreenState extends State<SelfAttendanceScreen> {
   /// - Uses high resolution (1920x1440) for long-range face detection
   /// - 500ms warmup delay for front camera stabilization
   ///
+  /// CAMERA SETTINGS:
+  /// - Position: Front camera (selfie mode) for self-attendance
+  /// - Resolution: ResolutionPreset.high (1920x1440)
+  /// - Format: NV21 for efficient processing
+  /// - Audio: Disabled (not needed for face detection)
+  /// - Flash/Torch: Supported for low-light conditions (toggle with button)
+  /// - Zoom: Adjustable from 1.0x to device maximum
+  /// - Warmup: 500ms before face detection starts
+  /// - Frame Skipping: Every 2nd frame processed (performance optimization)
+  ///
   /// Steps:
   /// 1. Get screen dimensions for face positioning
   /// 2. Initialize CameraController with front camera
@@ -132,21 +149,22 @@ class _SelfAttendanceScreenState extends State<SelfAttendanceScreen> {
 
       // Get available cameras
       final cameras = await availableCameras();
+      _availableCameras = cameras; // Store for later use (switching cameras)
 
       if (cameras.isEmpty) {
         throw Exception('No cameras available on this device');
       }
 
-      // Find front camera - CRITICAL: Use front camera for face detection
-      final frontCamera = cameras.firstWhere(
-        (camera) => camera.lensDirection == CameraLensDirection.front,
+      // Select camera based on _selectedLens (front or back)
+      final selectedCamera = cameras.firstWhere(
+        (camera) => camera.lensDirection == _selectedLens,
         orElse: () => cameras.first,
       );
 
       // Initialize camera controller as nullable
       // This prevents LateInitializationError if initialization fails
       _cameraController = CameraController(
-        frontCamera,
+        selectedCamera,
         ResolutionPreset.high, // 1920x1440 for long-range detection
         enableAudio: false,
       );
@@ -721,6 +739,122 @@ class _SelfAttendanceScreenState extends State<SelfAttendanceScreen> {
     }
   }
 
+  /// Toggle torch/flash mode for low-light conditions
+  /// Flash mode is useful for environments with poor lighting
+  /// Note: Front camera may not support flash on all devices
+  Future<void> _toggleTorch() async {
+    if (_cameraController == null) return;
+
+    try {
+      if (_torchEnabled) {
+        // Turn off torch/flash
+        await _cameraController!.setFlashMode(FlashMode.off);
+        setState(() {
+          _torchEnabled = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Torch disabled'),
+            duration: Duration(seconds: 1),
+          ),
+        );
+      } else {
+        // Turn on torch/flash
+        await _cameraController!.setFlashMode(FlashMode.torch);
+        setState(() {
+          _torchEnabled = true;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Torch enabled'),
+            duration: Duration(seconds: 1),
+          ),
+        );
+      }
+    } catch (e) {
+      print('Error toggling torch: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Torch not supported on this device: $e'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+    }
+  }
+
+  /// Set camera zoom level
+  /// Allows user to zoom in/out for better face positioning
+  /// Zoom range: 1.0 (no zoom) to maxZoomLevel
+  Future<void> _setZoom(double zoomLevel) async {
+    if (_cameraController == null) return;
+
+    try {
+      final maxZoom = await _cameraController!.getMaxZoomLevel();
+      final minZoom = await _cameraController!.getMinZoomLevel();
+
+      // Clamp zoom level between min and max
+      final clampedZoom = zoomLevel.clamp(minZoom, maxZoom);
+      await _cameraController!.setZoomLevel(clampedZoom);
+
+      setState(() {
+        _zoomLevel = clampedZoom;
+      });
+
+      print('Camera zoom set to: ${clampedZoom.toStringAsFixed(2)}x');
+    } catch (e) {
+      print('Error setting zoom: $e');
+    }
+  }
+
+  /// Switch between front and back cameras
+  /// Allows user to select which camera to use for attendance
+  /// Front camera: Selfie mode (user-facing)
+  /// Back camera: Group attendance mode (rear-facing)
+  Future<void> _switchCamera() async {
+    try {
+      // Dispose current camera controller
+      if (_cameraController != null) {
+        if (_cameraController!.value.isStreamingImages) {
+          await _cameraController!.stopImageStream();
+        }
+        await _cameraController!.dispose();
+        _cameraController = null;
+      }
+
+      // Toggle between front and back camera
+      setState(() {
+        _selectedLens = _selectedLens == CameraLensDirection.front
+            ? CameraLensDirection.back
+            : CameraLensDirection.front;
+        _cameraWarmed = false;
+        _zoomLevel = 1.0; // Reset zoom when switching cameras
+      });
+
+      // Show notification
+      final cameraName = _selectedLens == CameraLensDirection.front
+          ? 'Front Camera (Selfie)'
+          : 'Back Camera (Group View)';
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Switched to $cameraName'),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+
+      // Re-initialize camera with new lens
+      await _initializeCamera();
+    } catch (e) {
+      print('Error switching camera: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error switching camera: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -735,48 +869,145 @@ class _SelfAttendanceScreenState extends State<SelfAttendanceScreen> {
                 horizontal: 16.0,
                 vertical: 16.0,
               ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              child: Column(
                 children: [
-                  // Back Button
-                  GestureDetector(
-                    onTap: _handleBack,
-                    child: const Icon(
-                      Icons.arrow_back,
-                      color: Color(0xFF2C2C2C),
-                      size: 28,
-                    ),
-                  ),
-                  // Title Section
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                  // Top Row - Back, Title, and Logout buttons
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text(
-                        'Self Attendance',
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
+                      // Back Button
+                      GestureDetector(
+                        onTap: _handleBack,
+                        child: const Icon(
+                          Icons.arrow_back,
                           color: Color(0xFF2C2C2C),
+                          size: 28,
                         ),
                       ),
-                      Text(
-                        'Position your face',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: const Color(0xFF2C2C2C).withOpacity(0.7),
+                      // Title Section
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Self Attendance',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF2C2C2C),
+                            ),
+                          ),
+                          Text(
+                            'Position your face',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: const Color(0xFF2C2C2C).withOpacity(0.7),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const Spacer(),
+                      // Logout Button (Top Right)
+                      GestureDetector(
+                        onTap: _handleLogout,
+                        child: const Icon(
+                          Icons.login,
+                          color: Color(0xFF2C2C2C),
+                          size: 28,
                         ),
                       ),
                     ],
                   ),
-                  const Spacer(),
-                  // Logout Button (Top Right)
-                  GestureDetector(
-                    onTap: _handleLogout,
-                    child: const Icon(
-                      Icons.login,
-                      color: Color(0xFF2C2C2C),
-                      size: 28,
-                    ),
+                  const SizedBox(height: 12),
+                  // Camera Settings Row - Torch and Zoom controls
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      // Torch/Flash Toggle Button
+                      Tooltip(
+                        message: 'Toggle flash for low-light conditions',
+                        child: GestureDetector(
+                          onTap: _toggleTorch,
+                          child: Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: _torchEnabled
+                                  ? Colors.orange
+                                  : Colors.grey.shade300,
+                            ),
+                            child: Icon(
+                              _torchEnabled ? Icons.flash_on : Icons.flash_off,
+                              color: Colors.black,
+                              size: 20,
+                            ),
+                          ),
+                        ),
+                      ),
+                      // Zoom Level Display
+                      Text(
+                        'Zoom: ${_zoomLevel.toStringAsFixed(1)}x',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Color(0xFF2C2C2C),
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      // Zoom Out Button
+                      GestureDetector(
+                        onTap: () => _setZoom(_zoomLevel - 0.5),
+                        child: Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: Colors.grey.shade300,
+                          ),
+                          child: const Icon(
+                            Icons.zoom_out,
+                            color: Colors.black,
+                            size: 18,
+                          ),
+                        ),
+                      ),
+                      // Zoom In Button
+                      GestureDetector(
+                        onTap: () => _setZoom(_zoomLevel + 0.5),
+                        child: Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: Colors.grey.shade300,
+                          ),
+                          child: const Icon(
+                            Icons.zoom_in,
+                            color: Colors.black,
+                            size: 18,
+                          ),
+                        ),
+                      ),
+                      // Camera Switch Button (Front/Back)
+                      Tooltip(
+                        message: _selectedLens == CameraLensDirection.front
+                            ? 'Switch to Back Camera'
+                            : 'Switch to Front Camera',
+                        child: GestureDetector(
+                          onTap: _switchCamera,
+                          child: Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: Colors.blue.shade300,
+                            ),
+                            child: Icon(
+                              _selectedLens == CameraLensDirection.front
+                                  ? Icons.camera_rear
+                                  : Icons.camera_front,
+                              color: Colors.white,
+                              size: 20,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
