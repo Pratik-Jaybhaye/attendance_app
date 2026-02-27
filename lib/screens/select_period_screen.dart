@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/class.dart';
 import '../models/period.dart';
-import 'take_attendance_screen.dart';
+import 'class_summary_screen.dart';
 
 /// Select Period Screen
 /// This screen allows the user to select a specific period/time slot for attendance.
@@ -60,7 +60,7 @@ class _SelectPeriodScreenState extends State<SelectPeriodScreen> {
     super.dispose();
   }
 
-  /// Proceed to attendance taking screen
+  /// Proceed to class summary screen
   void _proceedToAttendance() {
     if (_selectedPeriodId == null) {
       ScaffoldMessenger.of(
@@ -80,7 +80,7 @@ class _SelectPeriodScreenState extends State<SelectPeriodScreen> {
 
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (context) => TakeAttendanceScreen(
+        builder: (context) => ClassSummaryScreen(
           selectedClasses: widget.selectedClasses,
           selectedPeriod: selectedPeriod,
         ),

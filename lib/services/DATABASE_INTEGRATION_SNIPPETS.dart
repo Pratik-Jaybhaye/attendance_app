@@ -8,9 +8,7 @@
 import 'package:attendance_app/models/attendance_record.dart';
 import 'package:attendance_app/services/attendance_service.dart';
 import 'package:uuid/uuid.dart';
-
 import 'package:flutter/material.dart';
-import 'package:attendance_app/services/attendance_service.dart';
 
 Future<void> saveAttendanceAfterCapture({
   required String classId,

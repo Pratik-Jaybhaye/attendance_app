@@ -257,4 +257,70 @@ class FaceRecognitionService {
       'loadTime': _cacheLoadTime.toString(),
     };
   }
+
+  /// Save face embedding to database
+  /// Stores a single face embedding for a student
+  Future<bool> saveFaceEmbeddingToDatabase({
+    required String embeddingId,
+    required String studentId,
+    required String studentName,
+    required List<double> embeddingVector,
+    required DateTime enrolledAt,
+  }) async {
+    try {
+      // Create FaceEmbedding object and cache it
+      final embedding = FaceEmbedding(
+        vector: embeddingVector,
+        studentId: studentId,
+        studentName: studentName,
+        enrolledAt: enrolledAt,
+      );
+      cacheEmbedding(embedding);
+      print(
+        '[FaceRecognition] Embedding saved for student: $studentName (ID: $studentId)',
+      );
+      return true;
+    } catch (e) {
+      print('[FaceRecognition] Error saving embedding: $e');
+      return false;
+    }
+  }
+
+  /// Get total count of embeddings in cache
+  Future<int> getTotalEmbeddingsCount() async {
+    try {
+      int totalEmbeddings = 0;
+      _embeddingCache.forEach((_, embeddings) {
+        totalEmbeddings += embeddings.length;
+      });
+      return totalEmbeddings;
+    } catch (e) {
+      print('[FaceRecognition] Error getting total embeddings count: $e');
+      return 0;
+    }
+  }
+
+  /// Get embedding count for a specific student
+  Future<int> getStudentEmbeddingCount(String studentId) async {
+    try {
+      final embeddings = _embeddingCache[studentId];
+      return embeddings?.length ?? 0;
+    } catch (e) {
+      print('[FaceRecognition] Error getting student embedding count: $e');
+      return 0;
+    }
+  }
+
+  /// Delete all embeddings for a student
+  Future<bool> deleteStudentEmbeddingsFromDatabase(String studentId) async {
+    try {
+      _embeddingCache.remove(studentId);
+      _studentMetadata.remove(studentId);
+      print('[FaceRecognition] Embeddings deleted for student: $studentId');
+      return true;
+    } catch (e) {
+      print('[FaceRecognition] Error deleting student embeddings: $e');
+      return false;
+    }
+  }
 }

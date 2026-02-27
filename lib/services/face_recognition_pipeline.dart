@@ -295,7 +295,7 @@ class FaceRecognitionPipeline {
 
       // Run spoof detection
       final spoofResult = _antiSpoofingService.detectSpoof(
-        bestFace,
+        bestFace['face'] as Face,
         imagePixels: imagePixels ?? [],
         imageWidth: imageWidth,
         imageHeight: imageHeight,
