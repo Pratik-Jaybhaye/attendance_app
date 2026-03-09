@@ -1,11 +1,13 @@
 /// AuthService handles user authentication operations
 /// Provides methods for login and registration
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 import 'user_service.dart';
 import '../models/user.dart';
 
 class AuthService {
-  // TODO: Replace with your actual API base URL
-  static const String apiBaseUrl = 'https://api.example.com';
+  // API Base URL
+  static const String apiBaseUrl = 'https://attendanceapi.acculekhaa.com';
 
   /// Login user with username and password
   /// Attempts to authenticate against local database first
@@ -233,6 +235,136 @@ class AuthService {
       return true;
     } catch (e) {
       print('AuthService: Logout error - $e');
+      return false;
+    }
+  }
+
+  // ==================== ACCOUNT OPERATIONS ====================
+
+  /// Validate user credentials against the server
+  /// API Endpoint: POST /api/Account/ValidateUser
+  /// Parameters:
+  ///   - username: User username or email (required)
+  ///   - password: User password (required)
+  /// Returns: Map with validation result and user details if valid, null otherwise
+  static Future<Map<String, dynamic>?> validateUser({
+    required String username,
+    required String password,
+    String? token,
+  }) async {
+    try {
+      print('AuthService: Validating user - $username');
+
+      final response = await http.post(
+        Uri.parse('$apiBaseUrl/api/Account/ValidateUser'),
+        headers: {
+          'Content-Type': 'application/json',
+          if (token != null) 'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({'username': username, 'password': password}),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final isValid = data['success'] ?? data['isValid'] ?? false;
+
+        if (isValid) {
+          print('AuthService: User validation successful - $username');
+          return {
+            'success': true,
+            'userId': data['userId'],
+            'username': data['username'] ?? username,
+            'email': data['email'],
+            'role': data['role'],
+            ...data,
+          };
+        } else {
+          print('AuthService: User validation failed - $username');
+          return null;
+        }
+      } else if (response.statusCode == 401) {
+        print('AuthService: Invalid credentials - $username');
+        return null;
+      } else {
+        print('AuthService: Error validating user - ${response.statusCode}');
+        return null;
+      }
+    } catch (e) {
+      print('AuthService: Exception validating user - $e');
+      return null;
+    }
+  }
+
+  /// Change user password
+  /// API Endpoint: POST /api/Account/ChangePassword
+  /// Parameters:
+  ///   - userId: User ID (required)
+  ///   - oldPassword: Current password (required)
+  ///   - newPassword: New password (required)
+  /// Returns: true if password changed successfully, false otherwise
+  static Future<bool> changePassword({
+    required String userId,
+    required String oldPassword,
+    required String newPassword,
+    String? token,
+  }) async {
+    try {
+      print('AuthService: Changing password for user - $userId');
+
+      // Validate input
+      if (oldPassword.isEmpty || newPassword.isEmpty) {
+        print('AuthService: Old password or new password is empty');
+        return false;
+      }
+
+      if (newPassword.length < 6) {
+        print('AuthService: New password must be at least 6 characters');
+        return false;
+      }
+
+      if (oldPassword == newPassword) {
+        print('AuthService: New password must be different from old password');
+        return false;
+      }
+
+      final response = await http.post(
+        Uri.parse('$apiBaseUrl/api/Account/ChangePassword'),
+        headers: {
+          'Content-Type': 'application/json',
+          if (token != null) 'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({
+          'userId': userId,
+          'oldPassword': oldPassword,
+          'newPassword': newPassword,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final isSuccess = data['success'] ?? data['isSuccess'] ?? false;
+
+        if (isSuccess) {
+          print(
+            'AuthService: Password changed successfully for user - $userId',
+          );
+          return true;
+        } else {
+          print('AuthService: Failed to change password - $userId');
+          return false;
+        }
+      } else if (response.statusCode == 401) {
+        print('AuthService: Unauthorized - token expired or invalid');
+        return false;
+      } else if (response.statusCode == 400) {
+        print('AuthService: Invalid request - check password requirements');
+        return false;
+      } else {
+        print('AuthService: Error changing password - ${response.statusCode}');
+        return false;
+      }
+    } catch (e) {
+      print('AuthService: Exception changing password - $e');
       return false;
     }
   }

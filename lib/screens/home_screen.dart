@@ -84,9 +84,11 @@ class _HomeScreenState extends State<HomeScreen> {
   /// Endpoint: POST /api/attendance/self
   /// This should handle taking self attendance
   void _takeSelfAttendance() {
-    // Navigate to self attendance screen with camera
+    // Navigate to self attendance screen with camera and pass user email
     Navigator.of(context).push(
-      MaterialPageRoute(builder: (context) => const SelfAttendanceScreen()),
+      MaterialPageRoute(
+        builder: (context) => SelfAttendanceScreen(email: widget.email),
+      ),
     );
   }
 

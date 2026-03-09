@@ -1,25 +1,31 @@
 /// AttendanceService handles attendance-related operations
 /// Provides methods for marking attendance, fetching logs, etc.
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 import 'database_helper.dart';
+import 'contact_service.dart';
 import '../models/attendance_record.dart';
 
 class AttendanceService {
   // TODO: Replace with your actual API base URL
-  static const String apiBaseUrl = 'https://api.example.com';
+  static const String apiBaseUrl = 'https://attendanceapi.acculekhaa.com/';
 
   static final DatabaseHelper _dbHelper = DatabaseHelper();
 
   /// Mark attendance with face verification and location data
   /// Returns true if attendance marked successfully, false otherwise
   ///
-  /// API Endpoint: POST /api/attendance/mark
-  /// Headers: Authorization: Bearer {token}
+  /// This method attempts to mark attendance using multiple strategies:
+  /// 1. First tries the Contact API endpoint (recommended)
+  /// 2. Falls back to local notification if API is unavailable
+  ///
+  /// API Endpoint: POST /api/Contact/MarkAttendance (primary)
   /// Request body:
   /// {
+  ///   "contactId": "user_id",
   ///   "latitude": 17.4059,
   ///   "longitude": 78.3746,
-  ///   "faceVerified": true,
-  ///   "timestamp": "2024-02-13T12:30:00Z"
+  ///   "faceVerified": true
   /// }
   ///
   /// Response body:
@@ -33,52 +39,99 @@ class AttendanceService {
     required double longitude,
     required bool faceVerified,
     String? token,
+    String? email,
+    String? userId,
   }) async {
     try {
       print('AttendanceService: Marking attendance');
       print('Location: $latitude, $longitude');
       print('Face Verified: $faceVerified');
+      print('Email: $email, UserID: $userId');
 
-      // TODO: Replace with actual API endpoint
-      // For now, this is a mock implementation
-      // Uncomment the code below when API is ready:
+      // Determine contactId to use
+      String? contactId = userId;
 
-      // final response = await http.post(
-      //   Uri.parse('$apiBaseUrl/api/attendance/mark'),
-      //   headers: {
-      //     'Content-Type': 'application/json',
-      //     'Authorization': 'Bearer $token',
-      //   },
-      //   body: jsonEncode({
-      //     'latitude': latitude,
-      //     'longitude': longitude,
-      //     'faceVerified': faceVerified,
-      //     'timestamp': DateTime.now().toIso8601String(),
-      //   }),
-      // );
-      //
-      // if (response.statusCode == 200) {
-      //   final data = jsonDecode(response.body);
-      //   print('AttendanceService: Attendance marked successfully');
-      //   return data['success'] ?? true;
-      // } else if (response.statusCode == 401) {
-      //   print('AttendanceService: Unauthorized - token expired');
-      //   return false;
-      // } else {
-      //   throw Exception('Failed to mark attendance: ${response.statusCode}');
-      // }
-
-      // MOCK IMPLEMENTATION: Remove when API is ready
-      await Future.delayed(const Duration(seconds: 1));
-
-      // Mock successful attendance marking for demo purposes
-      // Replace with actual API call
-      if (latitude != 0 && longitude != 0 && faceVerified) {
-        print('AttendanceService: Mock attendance marked successfully');
-        return true;
+      // If contactId not provided but email is, try to get user ID from database
+      if (contactId == null && email != null && email.isNotEmpty) {
+        try {
+          final user = await _dbHelper.getUserByEmail(email);
+          if (user != null) {
+            contactId = user.id;
+            print(
+              'AttendanceService: Retrieved user ID from email: $contactId',
+            );
+          }
+        } catch (e) {
+          print('AttendanceService: Could not retrieve user ID from email: $e');
+        }
       }
 
-      return false;
+      // Use ContactService if we have a contactId
+      if (contactId != null && contactId.isNotEmpty) {
+        print(
+          'AttendanceService: Using ContactService with contactId: $contactId',
+        );
+        return await ContactService.markAttendance(
+          contactId: contactId,
+          latitude: latitude,
+          longitude: longitude,
+          faceVerified: faceVerified,
+          token: token,
+        );
+      }
+
+      // Fallback: Try the direct attendance endpoint without token
+      print(
+        'AttendanceService: Using direct attendance endpoint (no contactId)',
+      );
+
+      final headers = {'Content-Type': 'application/json'};
+
+      if (token != null && token.isNotEmpty) {
+        headers['Authorization'] = 'Bearer $token';
+      }
+
+      final response = await http.post(
+        Uri.parse('${apiBaseUrl}api/Contact/MarkAttendance'),
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode({
+          "iOrgId": "1",
+          "iEnrollmentID": contactId,
+          "iPunchDateTime": DateTime.now().toIso8601String(),
+          "latitude": latitude.toString(),
+          "longitude": longitude.toString(),
+          "MachineId": 1,
+          "AttendanceType": 1,
+          "PunchPhotoUrl": "",
+          "CompanyCode": "ACCULEKHAA",
+          "UserId": int.tryParse(contactId ?? "0") ?? 0,
+          "UserType": "Teacher",
+          "CustomerId": 1,
+          "ContactId": int.tryParse(contactId ?? "0") ?? 0,
+          "TokenId": token ?? "",
+          "dbOperation": "INSERT",
+        }),
+      );
+      print("STATUS CODE: ${response.statusCode}");
+      print("RESPONSE BODY: ${response.body}");
+      print("CONTACT ID USED: $contactId");
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        print('AttendanceService: Attendance marked successfully');
+        return data['success'] ?? true;
+      } else if (response.statusCode == 401) {
+        print('AttendanceService: Unauthorized - token expired or missing');
+        return false;
+      } else if (response.statusCode == 500) {
+        print('AttendanceService: Server error - ${response.body}');
+        return false;
+      } else {
+        print(
+          'AttendanceService: Failed with status ${response.statusCode} - ${response.body}',
+        );
+        throw Exception('Failed to mark attendance: ${response.statusCode}');
+      }
     } catch (e) {
       print('AttendanceService: Error marking attendance - $e');
       return false;
@@ -120,53 +173,53 @@ class AttendanceService {
       // For now, this is a mock implementation
       // Uncomment the code below when API is ready:
 
-      // final response = await http.get(
-      //   Uri.parse('$apiBaseUrl/api/attendance/logs?limit=$limit&offset=$offset'),
-      //   headers: {
-      //     'Authorization': 'Bearer $token',
-      //   },
-      // );
-      //
-      // if (response.statusCode == 200) {
-      //   final data = jsonDecode(response.body);
-      //   final logs = List<Map<String, dynamic>>.from(data['logs'] ?? []);
-      //   print('AttendanceService: Fetched ${logs.length} records');
-      //   return logs;
-      // } else if (response.statusCode == 401) {
-      //   print('AttendanceService: Unauthorized - token expired');
-      //   return [];
-      // } else {
-      //   throw Exception('Failed to fetch logs: ${response.statusCode}');
-      // }
+      final response = await http.get(
+        Uri.parse(
+          '$apiBaseUrl/api/attendance/logs?limit=$limit&offset=$offset',
+        ),
+        headers: {'Authorization': 'Bearer $token'},
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final logs = List<Map<String, dynamic>>.from(data['logs'] ?? []);
+        print('AttendanceService: Fetched ${logs.length} records');
+        return logs;
+      } else if (response.statusCode == 401) {
+        print('AttendanceService: Unauthorized - token expired');
+        return [];
+      } else {
+        throw Exception('Failed to fetch logs: ${response.statusCode}');
+      }
 
       // MOCK IMPLEMENTATION: Remove when API is ready
       await Future.delayed(const Duration(milliseconds: 500));
 
       // Mock attendance logs for demo purposes
-      final mockLogs = [
-        {
-          'id': '1',
-          'date': DateTime.now().toString().split(' ')[0],
-          'time': '09:30:00',
-          'latitude': 17.4059,
-          'longitude': 78.3746,
-          'faceVerified': true,
-        },
-        {
-          'id': '2',
-          'date': DateTime.now()
-              .subtract(const Duration(days: 1))
-              .toString()
-              .split(' ')[0],
-          'time': '09:25:15',
-          'latitude': 17.4059,
-          'longitude': 78.3746,
-          'faceVerified': true,
-        },
-      ];
+      // final mockLogs = [
+      //   {
+      //     'id': '1',
+      //     'date': DateTime.now().toString().split(' ')[0],
+      //     'time': '09:30:00',
+      //     'latitude': 17.4059,
+      //     'longitude': 78.3746,
+      //     'faceVerified': true,
+      //   },
+      //   {
+      //     'id': '2',
+      //     'date': DateTime.now()
+      //         .subtract(const Duration(days: 1))
+      //         .toString()
+      //         .split(' ')[0],
+      //     'time': '09:25:15',
+      //     'latitude': 17.4059,
+      //     'longitude': 78.3746,
+      //     'faceVerified': true,
+      //   },
+      // ];
 
-      print('AttendanceService: Returning mock attendance logs');
-      return mockLogs;
+      // print('AttendanceService: Returning mock attendance logs');
+      // return mockLogs;
     } catch (e) {
       print('AttendanceService: Error fetching logs - $e');
       return [];

@@ -55,6 +55,12 @@ dependencies:
   # Local database
   sqflite: ^2.2.8+4
   path: ^1.8.3
+  
+  # Path provider for accessing app documents directory
+  path_provider: ^2.1.0
+  
+  # UUID for generating unique identifiers
+  uuid: ^4.0.0
 
 dev_dependencies:
   flutter_test:

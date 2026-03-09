@@ -13,12 +13,13 @@ class DatabaseHelper {
   // Database name and version
   static const String _databaseName = 'attendance_app.db';
   static const int _databaseVersion =
-      3; // Bumped to trigger onUpgrade for table creation
+      4; // Bumped to trigger onUpgrade for table creation (added photos table)
 
   // Table names
   static const String tableAttendance = 'attendance_records';
   static const String tableStudentAttendance = 'student_attendance';
   static const String tableUsers = 'users';
+  static const String tablePhotos = 'photos';
 
   // Column names for attendance_records table
   static const String columnId = 'id';
@@ -44,6 +45,21 @@ class DatabaseHelper {
   static const String columnRole = 'role';
   static const String columnLastLogin = 'last_login';
   static const String columnIsActive = 'is_active';
+
+  // Column names for photos table
+  static const String columnPhotoId = 'photo_id';
+  static const String columnPhotoStudentId = 'student_id';
+  static const String columnPhotoLocalPath = 'local_path';
+  static const String columnPhotoCloudPath = 'cloud_path';
+  static const String columnPhotoUploadId = 'upload_id';
+  static const String columnPhotoCapturedAt = 'captured_at';
+  static const String columnPhotoUploadedAt = 'uploaded_at';
+  static const String columnPhotoQuality = 'photo_quality';
+  static const String columnPhotoFaceScore = 'face_detection_score';
+  static const String columnPhotoIsLive = 'is_live_image';
+  static const String columnPhotoEmbeddingId = 'embedding_id';
+  static const String columnPhotoIsProcessed = 'is_processed';
+  static const String columnPhotoProcessingStatus = 'processing_status';
 
   DatabaseHelper._internal();
 
@@ -114,6 +130,27 @@ class DatabaseHelper {
       )
     ''');
 
+    // Create photos table for storing photo references
+    await db.execute('''
+      CREATE TABLE $tablePhotos (
+        $columnPhotoId TEXT PRIMARY KEY,
+        $columnPhotoStudentId TEXT NOT NULL,
+        $columnPhotoLocalPath TEXT NOT NULL,
+        $columnPhotoCloudPath TEXT,
+        $columnPhotoUploadId TEXT UNIQUE,
+        $columnPhotoCapturedAt TEXT NOT NULL,
+        $columnPhotoUploadedAt TEXT,
+        $columnPhotoQuality TEXT,
+        $columnPhotoFaceScore INTEGER,
+        $columnPhotoIsLive INTEGER,
+        $columnPhotoEmbeddingId TEXT,
+        $columnPhotoIsProcessed INTEGER DEFAULT 0,
+        $columnPhotoProcessingStatus TEXT DEFAULT 'pending',
+        $columnCreatedAt TEXT NOT NULL,
+        FOREIGN KEY ($columnPhotoStudentId) REFERENCES $tableUsers($columnId) ON DELETE CASCADE
+      )
+    ''');
+
     print('Database tables created successfully');
   }
 
@@ -176,6 +213,32 @@ class DatabaseHelper {
         print('Student attendance table created/verified during upgrade');
       } catch (e) {
         print('Student attendance table already exists or error creating: $e');
+      }
+
+      // Try to create photos table if it doesn't exist
+      try {
+        await db.execute('''
+          CREATE TABLE IF NOT EXISTS $tablePhotos (
+            $columnPhotoId TEXT PRIMARY KEY,
+            $columnPhotoStudentId TEXT NOT NULL,
+            $columnPhotoLocalPath TEXT NOT NULL,
+            $columnPhotoCloudPath TEXT,
+            $columnPhotoUploadId TEXT UNIQUE,
+            $columnPhotoCapturedAt TEXT NOT NULL,
+            $columnPhotoUploadedAt TEXT,
+            $columnPhotoQuality TEXT,
+            $columnPhotoFaceScore INTEGER,
+            $columnPhotoIsLive INTEGER,
+            $columnPhotoEmbeddingId TEXT,
+            $columnPhotoIsProcessed INTEGER DEFAULT 0,
+            $columnPhotoProcessingStatus TEXT DEFAULT 'pending',
+            $columnCreatedAt TEXT NOT NULL,
+            FOREIGN KEY ($columnPhotoStudentId) REFERENCES $tableUsers($columnId) ON DELETE CASCADE
+          )
+        ''');
+        print('Photos table created/verified during upgrade');
+      } catch (e) {
+        print('Photos table already exists or error creating: $e');
       }
     }
   }
@@ -945,6 +1008,258 @@ class DatabaseHelper {
     } catch (e) {
       print('Error deleting user: $e');
       return false;
+    }
+  }
+
+  // ==================== PHOTO OPERATIONS ====================
+
+  /// Save a photo to database
+  Future<bool> savePhoto({
+    required String photoId,
+    required String studentId,
+    required String localPath,
+    String? cloudPath,
+    String? uploadId,
+    required DateTime capturedAt,
+    DateTime? uploadedAt,
+    String? photoQuality,
+    int? faceDetectionScore,
+    bool? isLiveImage,
+    String? embeddingId,
+    bool isProcessed = false,
+    String processingStatus = 'pending',
+  }) async {
+    try {
+      final db = await database;
+
+      await db.insert(tablePhotos, {
+        columnPhotoId: photoId,
+        columnPhotoStudentId: studentId,
+        columnPhotoLocalPath: localPath,
+        columnPhotoCloudPath: cloudPath,
+        columnPhotoUploadId: uploadId,
+        columnPhotoCapturedAt: capturedAt.toIso8601String(),
+        columnPhotoUploadedAt: uploadedAt?.toIso8601String(),
+        columnPhotoQuality: photoQuality,
+        columnPhotoFaceScore: faceDetectionScore,
+        columnPhotoIsLive: isLiveImage != null ? (isLiveImage ? 1 : 0) : null,
+        columnPhotoEmbeddingId: embeddingId,
+        columnPhotoIsProcessed: isProcessed ? 1 : 0,
+        columnPhotoProcessingStatus: processingStatus,
+        columnCreatedAt: DateTime.now().toIso8601String(),
+      }, conflictAlgorithm: ConflictAlgorithm.replace);
+
+      print('Photo saved to database: $photoId');
+      return true;
+    } catch (e) {
+      print('Error saving photo: $e');
+      return false;
+    }
+  }
+
+  /// Get photo by ID
+  Future<Map<String, dynamic>?> getPhotoById(String photoId) async {
+    try {
+      final db = await database;
+      final result = await db.query(
+        tablePhotos,
+        where: '$columnPhotoId = ?',
+        whereArgs: [photoId],
+      );
+
+      if (result.isNotEmpty) {
+        return result.first;
+      }
+      return null;
+    } catch (e) {
+      print('Error getting photo: $e');
+      return null;
+    }
+  }
+
+  /// Get all photos for a student
+  Future<List<Map<String, dynamic>>> getStudentPhotos(String studentId) async {
+    try {
+      final db = await database;
+      final result = await db.query(
+        tablePhotos,
+        where: '$columnPhotoStudentId = ?',
+        whereArgs: [studentId],
+        orderBy: '$columnPhotoCapturedAt DESC',
+      );
+
+      return result;
+    } catch (e) {
+      print('Error getting student photos: $e');
+      return [];
+    }
+  }
+
+  /// Get latest photo for a student
+  Future<Map<String, dynamic>?> getLatestStudentPhoto(String studentId) async {
+    try {
+      final db = await database;
+      final result = await db.query(
+        tablePhotos,
+        where: '$columnPhotoStudentId = ?',
+        whereArgs: [studentId],
+        orderBy: '$columnPhotoCapturedAt DESC',
+        limit: 1,
+      );
+
+      if (result.isNotEmpty) {
+        return result.first;
+      }
+      return null;
+    } catch (e) {
+      print('Error getting latest student photo: $e');
+      return null;
+    }
+  }
+
+  /// Update photo in database
+  Future<bool> updatePhoto({
+    required String photoId,
+    String? cloudPath,
+    String? uploadId,
+    DateTime? uploadedAt,
+    String? photoQuality,
+    int? faceDetectionScore,
+    bool? isLiveImage,
+    String? embeddingId,
+    bool? isProcessed,
+    String? processingStatus,
+  }) async {
+    try {
+      final db = await database;
+
+      final updates = <String, dynamic>{};
+      if (cloudPath != null) updates[columnPhotoCloudPath] = cloudPath;
+      if (uploadId != null) updates[columnPhotoUploadId] = uploadId;
+      if (uploadedAt != null) {
+        updates[columnPhotoUploadedAt] = uploadedAt.toIso8601String();
+      }
+      if (photoQuality != null) updates[columnPhotoQuality] = photoQuality;
+      if (faceDetectionScore != null) {
+        updates[columnPhotoFaceScore] = faceDetectionScore;
+      }
+      if (isLiveImage != null) {
+        updates[columnPhotoIsLive] = isLiveImage ? 1 : 0;
+      }
+      if (embeddingId != null) updates[columnPhotoEmbeddingId] = embeddingId;
+      if (isProcessed != null) {
+        updates[columnPhotoIsProcessed] = isProcessed ? 1 : 0;
+      }
+      if (processingStatus != null) {
+        updates[columnPhotoProcessingStatus] = processingStatus;
+      }
+
+      if (updates.isEmpty) {
+        return true; // Nothing to update
+      }
+
+      await db.update(
+        tablePhotos,
+        updates,
+        where: '$columnPhotoId = ?',
+        whereArgs: [photoId],
+      );
+
+      print('Photo updated: $photoId');
+      return true;
+    } catch (e) {
+      print('Error updating photo: $e');
+      return false;
+    }
+  }
+
+  /// Delete photo from database
+  Future<bool> deletePhoto(String photoId) async {
+    try {
+      final db = await database;
+
+      await db.delete(
+        tablePhotos,
+        where: '$columnPhotoId = ?',
+        whereArgs: [photoId],
+      );
+
+      print('Photo deleted from database: $photoId');
+      return true;
+    } catch (e) {
+      print('Error deleting photo: $e');
+      return false;
+    }
+  }
+
+  /// Delete all photos for a student
+  Future<bool> deleteAllStudentPhotos(String studentId) async {
+    try {
+      final db = await database;
+
+      await db.delete(
+        tablePhotos,
+        where: '$columnPhotoStudentId = ?',
+        whereArgs: [studentId],
+      );
+
+      print('All photos deleted for student: $studentId');
+      return true;
+    } catch (e) {
+      print('Error deleting all student photos: $e');
+      return false;
+    }
+  }
+
+  /// Get photos by processing status
+  Future<List<Map<String, dynamic>>> getPhotosByStatus(String status) async {
+    try {
+      final db = await database;
+      final result = await db.query(
+        tablePhotos,
+        where: '$columnPhotoProcessingStatus = ?',
+        whereArgs: [status],
+        orderBy: '$columnPhotoCapturedAt DESC',
+      );
+
+      return result;
+    } catch (e) {
+      print('Error getting photos by status: $e');
+      return [];
+    }
+  }
+
+  /// Get photos that are pending upload
+  Future<List<Map<String, dynamic>>> getPendingUploadPhotos() async {
+    try {
+      final db = await database;
+      final result = await db.query(
+        tablePhotos,
+        where: '$columnPhotoUploadId IS NULL',
+        orderBy: '$columnPhotoCapturedAt DESC',
+      );
+
+      return result;
+    } catch (e) {
+      print('Error getting pending upload photos: $e');
+      return [];
+    }
+  }
+
+  /// Get photos that are pending embedding processing
+  Future<List<Map<String, dynamic>>> getPendingEmbeddingPhotos() async {
+    try {
+      final db = await database;
+      final result = await db.query(
+        tablePhotos,
+        where: '$columnPhotoIsProcessed = 0',
+        orderBy: '$columnPhotoCapturedAt DESC',
+      );
+
+      return result;
+    } catch (e) {
+      print('Error getting pending embedding photos: $e');
+      return [];
     }
   }
 

@@ -8,7 +8,7 @@ import 'take_attendance_screen.dart';
 /// Class Summary Screen
 /// Displayed after selecting a period. Shows class statistics and allows
 /// users to manage student photos before taking attendance.
-/// 
+///
 /// Features:
 /// - Display total students, with face data, pending count
 /// - Show student photo with edit option
@@ -90,7 +90,8 @@ class _ClassSummaryScreenState extends State<ClassSummaryScreen> {
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (context) => UploadMultiplePhotosScreen(
-          student: _currentSelectedStudent ?? widget.selectedClasses[0].students[0],
+          student:
+              _currentSelectedStudent ?? widget.selectedClasses[0].students[0],
           onPhotosUploaded: _onPhotosUploaded,
         ),
       ),
@@ -110,7 +111,9 @@ class _ClassSummaryScreenState extends State<ClassSummaryScreen> {
     if (_getWithFaceDataCount() == 0) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Please enroll at least one student before taking attendance'),
+          content: Text(
+            'Please enroll at least one student before taking attendance',
+          ),
         ),
       );
       return;
@@ -233,9 +236,7 @@ class _ClassSummaryScreenState extends State<ClassSummaryScreen> {
           borderRadius: BorderRadius.circular(12.0),
           border: Border.all(color: Colors.grey.shade300),
         ),
-        child: const Center(
-          child: Text('No student selected'),
-        ),
+        child: const Center(child: Text('No student selected')),
       );
     }
 
@@ -254,19 +255,13 @@ class _ClassSummaryScreenState extends State<ClassSummaryScreen> {
           // Student Name
           Text(
             student.name,
-            style: const TextStyle(
-              fontSize: 18.0,
-              fontWeight: FontWeight.bold,
-            ),
+            style: const TextStyle(fontSize: 18.0, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 8.0),
           // Student Roll
           Text(
             'Roll: ${student.rollNumber}',
-            style: TextStyle(
-              fontSize: 14.0,
-              color: Colors.grey.shade700,
-            ),
+            style: TextStyle(fontSize: 14.0, color: Colors.grey.shade700),
           ),
           const SizedBox(height: 16.0),
 
@@ -282,16 +277,17 @@ class _ClassSummaryScreenState extends State<ClassSummaryScreen> {
             child: student.enrollmentStatus == 'enrolled'
                 ? const Icon(Icons.person, size: 80.0, color: Colors.grey)
                 : Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: const [
-                    Icon(Icons.add_photo_alternate, size: 40.0, color: Colors.grey),
-                    SizedBox(height: 8.0),
-                    Text(
-                      'No Photo',
-                      style: TextStyle(color: Colors.grey),
-                    ),
-                  ],
-                ),
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: const [
+                      Icon(
+                        Icons.add_photo_alternate,
+                        size: 40.0,
+                        color: Colors.grey,
+                      ),
+                      SizedBox(height: 8.0),
+                      Text('No Photo', style: TextStyle(color: Colors.grey)),
+                    ],
+                  ),
           ),
           const SizedBox(height: 16.0),
 
@@ -380,9 +376,9 @@ class _ClassSummaryScreenState extends State<ClassSummaryScreen> {
       children: [
         Text(
           'Classes',
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-            fontWeight: FontWeight.bold,
-          ),
+          style: Theme.of(
+            context,
+          ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 12.0),
         ListView.builder(
@@ -424,10 +420,7 @@ class _ClassSummaryScreenState extends State<ClassSummaryScreen> {
               const SizedBox(height: 4.0),
               Text(
                 '${classModel.students.length} students',
-                style: TextStyle(
-                  fontSize: 12.0,
-                  color: Colors.grey.shade700,
-                ),
+                style: TextStyle(fontSize: 12.0, color: Colors.grey.shade700),
               ),
             ],
           ),

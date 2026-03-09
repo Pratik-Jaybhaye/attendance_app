@@ -12,7 +12,9 @@ import 'dart:typed_data';
 import 'login_screen.dart';
 
 class SelfAttendanceScreen extends StatefulWidget {
-  const SelfAttendanceScreen({super.key});
+  final String? email;
+
+  const SelfAttendanceScreen({super.key, this.email});
 
   @override
   State<SelfAttendanceScreen> createState() => _SelfAttendanceScreenState();
@@ -570,6 +572,7 @@ class _SelfAttendanceScreenState extends State<SelfAttendanceScreen> {
                     longitude: position.longitude,
                     faceVerified:
                         true, // Face verified through ML Kit detection
+                    email: widget.email, // Pass user email for identification
                   );
 
                   if (!mounted) return;
@@ -707,6 +710,7 @@ class _SelfAttendanceScreenState extends State<SelfAttendanceScreen> {
         latitude: position.latitude,
         longitude: position.longitude,
         faceVerified: faceFound,
+        email: widget.email, // Pass user email for identification
       );
 
       if (!mounted) return;

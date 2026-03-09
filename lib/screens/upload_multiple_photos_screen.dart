@@ -111,7 +111,10 @@ class _UploadMultiplePhotosScreenState
 
   /// Submit all captured photos
   void _submitPhotos() {
-    final totalPhotos = _uploadedPhotos.values.fold(0, (sum, count) => sum + count);
+    final totalPhotos = _uploadedPhotos.values.fold(
+      0,
+      (sum, count) => sum + count,
+    );
 
     if (totalPhotos == 0) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -164,9 +167,7 @@ class _UploadMultiplePhotosScreenState
               // Process upload
               _processPhotoUpload();
             },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.purple,
-            ),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.purple),
             child: const Text('Submit'),
           ),
         ],
@@ -218,7 +219,10 @@ class _UploadMultiplePhotosScreenState
 
   @override
   Widget build(BuildContext context) {
-    final totalPhotos = _uploadedPhotos.values.fold(0, (sum, count) => sum + count);
+    final totalPhotos = _uploadedPhotos.values.fold(
+      0,
+      (sum, count) => sum + count,
+    );
 
     return Scaffold(
       appBar: AppBar(
@@ -236,17 +240,14 @@ class _UploadMultiplePhotosScreenState
             // Student name
             Text(
               widget.student.name,
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8.0),
             Text(
               'Capture different angles for better recognition',
-              style: TextStyle(
-                fontSize: 14.0,
-                color: Colors.grey.shade700,
-              ),
+              style: TextStyle(fontSize: 14.0, color: Colors.grey.shade700),
             ),
             const SizedBox(height: 20.0),
 
@@ -264,11 +265,12 @@ class _UploadMultiplePhotosScreenState
             Container(
               padding: const EdgeInsets.all(12.0),
               decoration: BoxDecoration(
-                color: totalPhotos > 0 ? Colors.green.shade50 : Colors.grey.shade100,
+                color: totalPhotos > 0
+                    ? Colors.green.shade50
+                    : Colors.grey.shade100,
                 borderRadius: BorderRadius.circular(8.0),
                 border: Border.all(
-                  color:
-                      totalPhotos > 0
+                  color: totalPhotos > 0
                       ? Colors.green.shade300
                       : Colors.grey.shade300,
                 ),
@@ -280,8 +282,7 @@ class _UploadMultiplePhotosScreenState
                       : 'Upload 0 Photos',
                   style: TextStyle(
                     fontWeight: FontWeight.w500,
-                    color:
-                        totalPhotos > 0
+                    color: totalPhotos > 0
                         ? Colors.green.shade700
                         : Colors.grey.shade700,
                   ),
@@ -318,7 +319,11 @@ class _UploadMultiplePhotosScreenState
   }
 
   /// Build angle capture section
-  Widget _buildAngleSection(String angleId, String angleTitle, String instruction) {
+  Widget _buildAngleSection(
+    String angleId,
+    String angleTitle,
+    String instruction,
+  ) {
     final photoCount = _uploadedPhotos[angleId] ?? 0;
 
     return Container(
