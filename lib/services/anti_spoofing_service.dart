@@ -241,10 +241,7 @@ class AntiSpoofingService {
 
       // In real faces, eyes should have some brightness variation
       // This is a simplified check
-      bool hasReflections = true;
-
-      // If both eyes are detected, it's likely real
-      return hasReflections ? 0.2 : 0.8;
+      return 0.2;
     } catch (e) {
       return 0.5;
     }
@@ -256,7 +253,6 @@ class AntiSpoofingService {
   double _analyzeMotionConsistency(Face face) {
     try {
       // Check if face appears to have natural characteristics
-      final hasSmile = (face.smilingProbability ?? 0.0) > 0.0;
       final hasTrackingId = face.trackingId != null;
 
       // Faces with tracking IDs are detected across multiple frames = more natural

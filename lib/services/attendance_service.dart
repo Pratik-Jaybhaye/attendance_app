@@ -112,6 +112,7 @@ class AttendanceService {
           "dbOperation": "INSERT",
         }),
       );
+
       print("STATUS CODE: ${response.statusCode}");
       print("RESPONSE BODY: ${response.body}");
       print("CONTACT ID USED: $contactId");
@@ -191,35 +192,6 @@ class AttendanceService {
       } else {
         throw Exception('Failed to fetch logs: ${response.statusCode}');
       }
-
-      // MOCK IMPLEMENTATION: Remove when API is ready
-      await Future.delayed(const Duration(milliseconds: 500));
-
-      // Mock attendance logs for demo purposes
-      // final mockLogs = [
-      //   {
-      //     'id': '1',
-      //     'date': DateTime.now().toString().split(' ')[0],
-      //     'time': '09:30:00',
-      //     'latitude': 17.4059,
-      //     'longitude': 78.3746,
-      //     'faceVerified': true,
-      //   },
-      //   {
-      //     'id': '2',
-      //     'date': DateTime.now()
-      //         .subtract(const Duration(days: 1))
-      //         .toString()
-      //         .split(' ')[0],
-      //     'time': '09:25:15',
-      //     'latitude': 17.4059,
-      //     'longitude': 78.3746,
-      //     'faceVerified': true,
-      //   },
-      // ];
-
-      // print('AttendanceService: Returning mock attendance logs');
-      // return mockLogs;
     } catch (e) {
       print('AttendanceService: Error fetching logs - $e');
       return [];

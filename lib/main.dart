@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'screens/login_screen.dart';
 import 'screens/select_classes_screen.dart';
-import 'models/class.dart';
 import 'services/database_helper.dart';
 
 void main() async {
@@ -28,12 +27,6 @@ class MyApp extends StatelessWidget {
       routes: {
         '/select-classes': (context) => const SelectClassesScreen(),
         '/take-attendance': (context) {
-          // Get arguments passed from previous screen
-          final args =
-              ModalRoute.of(context)?.settings.arguments
-                  as Map<String, dynamic>?;
-          final classData = args?['classData'] as ClassModel?;
-
           // Fallback if needed
           return Scaffold(
             appBar: AppBar(title: const Text('Take Attendance')),

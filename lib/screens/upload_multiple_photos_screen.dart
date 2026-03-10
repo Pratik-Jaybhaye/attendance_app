@@ -37,15 +37,6 @@ class _UploadMultiplePhotosScreenState
     'down': 0,
   };
 
-  /// Photos captured per angle
-  final Map<String, List<String>> _photoPaths = {
-    'front': [],
-    'left': [],
-    'right': [],
-    'up': [],
-    'down': [],
-  };
-
   /// Angle information with instructions
   final List<Map<String, String>> _angleInfo = [
     {

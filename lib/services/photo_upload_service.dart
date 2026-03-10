@@ -22,7 +22,6 @@ class PhotoUploadService {
   // TODO: Configure with your actual backend URL
   static const String _baseUrl = 'https://api.example.com';
   static const String _uploadEndpoint = '/api/v1/photos/upload';
-  static const String _batchUploadEndpoint = '/api/v1/photos/batch-upload';
   static const String _embeddingEndpoint = '/api/v1/embeddings/process';
 
   // Upload timeout

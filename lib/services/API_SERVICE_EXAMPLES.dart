@@ -6,12 +6,8 @@
 // ===========================
 // IMPORT STATEMENTS
 // ===========================
-import 'package:flutter/material.dart';
 import 'package:attendance_app/services/contact_service.dart';
 import 'package:attendance_app/services/customer_service.dart';
-import 'package:attendance_app/models/contact.dart';
-import 'package:attendance_app/models/group.dart';
-import 'package:attendance_app/models/employee.dart';
 
 // ===========================
 // CONTACT SERVICE EXAMPLES
@@ -281,7 +277,7 @@ class CustomerServiceExamples {
       final employees = await CustomerService.getAllEmployees(
         limit: 20,
         offset: 0,
-        //  department:'IT',
+        //department:'IT',
         status: 'active',
         token: 'your_auth_token',
       );

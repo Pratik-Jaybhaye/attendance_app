@@ -69,12 +69,12 @@ class FaceRecognitionService {
         '[FaceRecognition] Loading embeddings for ${studentIds.length} students...',
       );
 
-      for (final studentId in studentIds) {
-        // TODO: Fetch embeddings from backend or local database
-        // Example:
-        // final embeddings = await _getStudentEmbeddings(studentId);
-        // _embeddingCache[studentId] = embeddings;
-      }
+      // TODO: Fetch embeddings from backend or local database
+      // Example:
+      // for (final studentId in studentIds) {
+      //   final embeddings = await _getStudentEmbeddings(studentId);
+      //   _embeddingCache[studentId] = embeddings;
+      // }
 
       _cacheLoadTime = DateTime.now();
       print('[FaceRecognition] Embedding cache loaded successfully');

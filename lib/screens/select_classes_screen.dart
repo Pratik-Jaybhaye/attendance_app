@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/class.dart';
 import '../models/student.dart';
-import 'class_list_screen.dart';
 import 'select_period_screen.dart';
 
 /// Select Classes Screen
@@ -123,16 +122,6 @@ class _SelectClassesScreenState extends State<SelectClassesScreen> {
       MaterialPageRoute(
         builder: (context) =>
             SelectPeriodScreen(selectedClasses: selectedClasses),
-      ),
-    );
-  }
-
-  /// View class details and students
-  void _viewClassDetails(ClassModel classModel) {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (context) =>
-            ClassListScreen(className: classModel.name, classData: classModel),
       ),
     );
   }

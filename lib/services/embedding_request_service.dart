@@ -413,7 +413,6 @@ class EmbeddingRequestService {
       print('[EmbeddingRequest] Re-enrolling student: $studentId');
 
       final response = await request.send().timeout(_requestTimeout);
-      final responseBody = await response.stream.bytesToString();
 
       if (response.statusCode == 200 || response.statusCode == 202) {
         print('[EmbeddingRequest] Re-enrollment successful');

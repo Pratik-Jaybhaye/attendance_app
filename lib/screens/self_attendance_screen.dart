@@ -61,14 +61,12 @@ class _SelfAttendanceScreenState extends State<SelfAttendanceScreen> {
   // Warmup delay for camera stabilization
   static const int WARMUP_DELAY_MS = 500; // 500ms for front camera
   bool _cameraWarmed = false;
-  late DateTime _initializationTime;
 
   // Camera settings
   bool _torchEnabled = false; // Flash/torch mode for low-light conditions
   double _zoomLevel = 1.0; // Camera zoom level (1.0 = no zoom)
   CameraLensDirection _selectedLens =
       CameraLensDirection.front; // Track selected camera (front or back)
-  List<CameraDescription> _availableCameras = []; // Store available cameras
 
   @override
   void initState() {
@@ -151,7 +149,6 @@ class _SelfAttendanceScreenState extends State<SelfAttendanceScreen> {
 
       // Get available cameras
       final cameras = await availableCameras();
-      _availableCameras = cameras; // Store for later use (switching cameras)
 
       if (cameras.isEmpty) {
         throw Exception('No cameras available on this device');
@@ -175,9 +172,6 @@ class _SelfAttendanceScreenState extends State<SelfAttendanceScreen> {
       _faceDetectionService = FaceDetectionService();
       _faceRecognitionService = FaceRecognitionService();
       _antiSpoofingService = AntiSpoofingService();
-
-      // Start initialization timer
-      _initializationTime = DateTime.now();
 
       // CRITICAL FIX: Initialize the controller and assign the Future immediately
       // Assign Future BEFORE awaiting to prevent LateInitializationError
@@ -384,9 +378,8 @@ class _SelfAttendanceScreenState extends State<SelfAttendanceScreen> {
             _faceRecognitionService?.generateMockEmbedding() ?? [];
 
         // Recognize face against cached teacher embedding
-        Map<String, dynamic> recognitionResult = {};
         if (_faceRecognitionService != null && mockEmbedding.isNotEmpty) {
-          recognitionResult = _faceRecognitionService!.recognizeFace(
+          _faceRecognitionService!.recognizeFace(
             mockEmbedding,
             confidenceThreshold: 0.65,
           );
@@ -494,130 +487,6 @@ class _SelfAttendanceScreenState extends State<SelfAttendanceScreen> {
   }
 
   /// Capture and submit attendance
-  void _captureAndSubmitAttendance() {
-    if (!isFaceDetected) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'No face detected. Please position your face in the frame.',
-          ),
-        ),
-      );
-      return;
-    }
-
-    if (!isFaceInFrame) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Face not properly positioned. Please center your face.',
-          ),
-        ),
-      );
-      return;
-    }
-
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Attendance Confirmation'),
-          content: const Text('Mark attendance now?'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
-            ),
-            TextButton(
-              onPressed: () async {
-                Navigator.pop(context);
-
-                // Show loading dialog while marking attendance
-                showDialog(
-                  context: context,
-                  barrierDismissible: false,
-                  builder: (BuildContext context) {
-                    return const AlertDialog(
-                      content: Row(
-                        children: [
-                          CircularProgressIndicator(),
-                          SizedBox(width: 16),
-                          Text('Marking attendance...'),
-                        ],
-                      ),
-                    );
-                  },
-                );
-
-                try {
-                  // Get current location
-                  final position = await _getCurrentLocation();
-
-                  if (!mounted) return;
-
-                  if (position == null) {
-                    Navigator.pop(context); // Close loading dialog
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Failed to get location'),
-                        backgroundColor: Colors.red,
-                      ),
-                    );
-                    return;
-                  }
-
-                  // Call AttendanceService.markAttendance with latitude, longitude, and faceVerified=true
-                  final success = await AttendanceService.markAttendance(
-                    latitude: position.latitude,
-                    longitude: position.longitude,
-                    faceVerified:
-                        true, // Face verified through ML Kit detection
-                    email: widget.email, // Pass user email for identification
-                  );
-
-                  if (!mounted) return;
-
-                  Navigator.pop(context); // Close loading dialog
-
-                  if (success) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Attendance marked successfully!'),
-                        backgroundColor: Colors.green,
-                      ),
-                    );
-                    // Navigate back to home after 1 second
-                    Future.delayed(const Duration(seconds: 1), () {
-                      if (mounted) Navigator.of(context).pop();
-                    });
-                  } else {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text(
-                          'Failed to mark attendance. Please try again.',
-                        ),
-                        backgroundColor: Colors.red,
-                      ),
-                    );
-                  }
-                } catch (e) {
-                  if (!mounted) return;
-                  Navigator.pop(context); // Close loading dialog
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Error: $e'),
-                      backgroundColor: Colors.red,
-                    ),
-                  );
-                }
-              },
-              child: const Text('Confirm'),
-            ),
-          ],
-        );
-      },
-    );
-  }
 
   /// Capture a still image, run face detection on it, then submit attendance.
   Future<void> _onCaptureButtonPressed() async {

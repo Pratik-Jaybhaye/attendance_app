@@ -1,5 +1,4 @@
 import 'package:uuid/uuid.dart';
-import 'database_helper.dart';
 import 'photo_storage_service.dart';
 import 'photo_upload_service.dart';
 import 'embedding_request_service.dart';
@@ -20,13 +19,11 @@ class PhotoManagementService {
   static final PhotoManagementService _instance =
       PhotoManagementService._internal();
 
-  final DatabaseHelper _dbHelper = DatabaseHelper();
   final PhotoStorageService _photoStorage = PhotoStorageService();
   final PhotoUploadService _photoUploader = PhotoUploadService();
   final EmbeddingRequestService _embeddingService = EmbeddingRequestService();
 
   static const String _log = '[PhotoManagement]';
-  static const String _photosTable = 'photos';
 
   PhotoManagementService._internal();
 
@@ -424,13 +421,6 @@ class PhotoManagementService {
   }
 
   // ==================== DATABASE OPERATIONS ====================
-
-  /// Ensure photos table exists in database
-  Future<void> _initializePhotosTable() async {
-    // This would be called during app initialization
-    // Database schema should be created in database_helper.dart
-    print('$_log Photos table initialized');
-  }
 
   /// Save photo to database
   /// Note: Actual implementation depends on your database_helper.dart structure
