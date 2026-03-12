@@ -855,7 +855,7 @@ class DatabaseHelper {
   /// Get all users
   Future<List<User>> getAllUsers() async {
     try {
-      final db = await database;
+      final db = await database;  
       final result = await db.query(
         tableUsers,
         orderBy: '$columnCreatedAt DESC',
@@ -909,7 +909,7 @@ class DatabaseHelper {
           columnProfileImagePath: user.profileImagePath,
           columnRole: user.role,
           columnIsActive: user.isActive ? 1 : 0,
-          columnUpdatedAt: DateTime.now().toIso8601String(),
+          columnLastLogin: DateTime.now().toIso8601String(),
         },
         where: '$columnId = ?',
         whereArgs: [user.id],

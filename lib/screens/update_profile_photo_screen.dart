@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'dart:io';
+import '../services/photo_storage_service.dart';
+import '../services/database_helper.dart';
+import '../services/user_service.dart';
 
 /// Update Profile Photo Screen
 /// This screen allows users to view their current profile information
@@ -250,10 +253,7 @@ class _UpdateProfilePhotoScreenState extends State<UpdateProfilePhotoScreen> {
   }
 
   /// Upload profile photo to backend
-  /// TODO: Replace with actual API call
-  /// Endpoint: POST /api/user/profile/photo
-  /// Method: multipart/form-data
-  /// Parameters: file (image file)
+  /// Saves photo locally and updates user profile image path in database
   Future<void> _uploadProfilePhoto() async {
     try {
       // Show loading dialog
@@ -276,24 +276,43 @@ class _UpdateProfilePhotoScreenState extends State<UpdateProfilePhotoScreen> {
         },
       );
 
-      // TODO: Implement actual API upload
-      // Example code:
-      // final request = http.MultipartRequest(
-      //   'POST',
-      //   Uri.parse('$API_BASE_URL/api/user/profile/photo'),
-      // );
-      // request.headers['Authorization'] = 'Bearer $authToken';
-      // request.files.add(
-      //   await http.MultipartFile.fromPath('file', selectedImagePath!),
-      // );
-      // final response = await request.send();
-      // if (response.statusCode == 200) { ... }
+      // Step 1: Save photo to local storage with user ID
+      final photoStorageService = PhotoStorageService();
+      final savedPhotoPath = await photoStorageService.saveProfilePhoto(
+        sourceImagePath: selectedImagePath!,
+        userId: widget.userID,
+      );
 
-      // Simulate API call
-      await Future.delayed(const Duration(seconds: 2));
+      if (savedPhotoPath == null) {
+        throw Exception('Failed to save photo locally');
+      }
+
+      print('[UpdateProfilePhoto] Photo saved to: $savedPhotoPath');
+
+      // Step 2: Get user from database
+      final dbHelper = DatabaseHelper();
+      final user = await dbHelper.getUserById(widget.userID);
+
+      if (user == null) {
+        throw Exception('User not found in database');
+      }
+
+      print('[UpdateProfilePhoto] User found: ${user.username}');
+
+      // Step 3: Update user with new profile image path
+      final updatedUser = user.copyWith(profileImagePath: savedPhotoPath);
+
+      // Step 4: Save updated user to database
+      final updateSuccess = await dbHelper.updateUser(updatedUser);
+
+      if (!updateSuccess) {
+        throw Exception('Failed to update user in database');
+      }
+
+      print('[UpdateProfilePhoto] User profile updated successfully');
 
       // Close loading dialog
-      Navigator.pop(context);
+      if (mounted) Navigator.pop(context);
 
       // Show success message
       if (mounted) {
@@ -310,8 +329,16 @@ class _UpdateProfilePhotoScreenState extends State<UpdateProfilePhotoScreen> {
         });
       }
     } catch (e) {
-      // Close loading dialog
-      Navigator.pop(context);
+      print('[UpdateProfilePhoto] Error: $e');
+
+      // Close loading dialog if it exists
+      if (mounted) {
+        try {
+          Navigator.pop(context);
+        } catch (e) {
+          // Dialog might not exist, ignore
+        }
+      }
 
       // Show error message
       if (mounted) {

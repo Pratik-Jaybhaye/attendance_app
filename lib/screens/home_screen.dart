@@ -5,21 +5,24 @@ import 'update_profile_photo_screen.dart';
 import 'select_classes_screen.dart';
 import 'attendance_logs_screen.dart';
 import 'about_us_screen.dart';
+import '../services/database_helper.dart';
+import '../services/photo_storage_service.dart';
+import 'dart:io';
 
 class HomeScreen extends StatefulWidget {
-  final String email;
+  final String username;
 
-  const HomeScreen({super.key, required this.email});
+  const HomeScreen({super.key, required this.username});
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  // User profile data - should be fetched from backend
-  String? userProfileImage; // API: Fetch from /api/user/profile/image
-  String userName = 'Srikanth 2'; // API: Fetch from /api/user/profile
-  String userID = '60321'; // API: Fetch from /api/user/id
+  // User profile data - fetched from database
+  String? userProfileImage;
+  String userName = '...';
+  String userID = '';
 
   bool _isLoading = true;
 
@@ -29,42 +32,87 @@ class _HomeScreenState extends State<HomeScreen> {
     _fetchUserProfile();
   }
 
-  /// TODO: Connect to Backend API
-  /// Endpoint: GET /api/user/profile
-  /// This should fetch:
-  /// - User name
-  /// - User ID
-  /// - Profile image URL
+  /// Helper method to display profile image
+  /// Handles both local file paths and network URLs
+  Widget _buildProfileImage(
+    String? imagePath, {
+    double? width,
+    double? height,
+  }) {
+    if (imagePath == null) {
+      return Icon(
+        Icons.person,
+        size: width ?? 60,
+        color: const Color(0xFF6B5B95),
+      );
+    }
+
+    // Check if it's a local file path
+    if (imagePath.startsWith('/')) {
+      final file = File(imagePath);
+      if (file.existsSync()) {
+        return Image.file(file, fit: BoxFit.cover);
+      }
+    }
+
+    // Try as network URL
+    return Image.network(
+      imagePath,
+      fit: BoxFit.cover,
+      errorBuilder: (context, error, stackTrace) {
+        return Icon(
+          Icons.person,
+          size: width ?? 60,
+          color: const Color(0xFF6B5B95),
+        );
+      },
+    );
+  }
+
+  /// Fetch user profile from database using username from login
+  /// This fetches the actual user data instead of hardcoded values
   Future<void> _fetchUserProfile() async {
     try {
-      // TODO: Replace with actual API call
-      // Example:
-      // final response = await http.get(
-      //   Uri.parse('$API_BASE_URL/api/user/profile'),
-      //   headers: {'Authorization': 'Bearer $authToken'},
-      // );
-      // if (response.statusCode == 200) {
-      //   final data = jsonDecode(response.body);
-      //   setState(() {
-      //     userName = data['name'];
-      //     userID = data['id'];
-      //     userProfileImage = data['profileImage'];
-      //     _isLoading = false;
-      //   });
-      // }
+      print(
+        '[HomeScreen] Fetching user profile for username: ${widget.username}',
+      );
 
-      // Mock delay to simulate API call
-      await Future.delayed(const Duration(milliseconds: 500));
-      setState(() {
-        _isLoading = false;
-      });
+      final dbHelper = DatabaseHelper();
+
+      // Fetch user from database using username
+      final user = await dbHelper.getUserByUsername(widget.username);
+
+      if (user != null) {
+        print('[HomeScreen] User found: ${user.fullName} (ID: ${user.id})');
+
+        // Fetch profile photo path from storage
+        final photoStorageService = PhotoStorageService();
+        final profilePhotoPath = await photoStorageService.getProfilePhotoPath(
+          user.id,
+        );
+
+        setState(() {
+          userName = user.fullName ?? user.username;
+          userID = user.id;
+          userProfileImage = profilePhotoPath; // Local photo path
+          _isLoading = false;
+        });
+      } else {
+        print('[HomeScreen] User not found for username: ${widget.username}');
+        setState(() {
+          _isLoading = false;
+        });
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('User profile not found')));
+      }
     } catch (e) {
       print('Error fetching user profile: $e');
       setState(() {
         _isLoading = false;
       });
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Failed to load user profile')),
+        SnackBar(content: Text('Failed to load user profile: $e')),
       );
     }
   }
@@ -84,10 +132,10 @@ class _HomeScreenState extends State<HomeScreen> {
   /// Endpoint: POST /api/attendance/self
   /// This should handle taking self attendance
   void _takeSelfAttendance() {
-    // Navigate to self attendance screen with camera and pass user email
+    // Navigate to self attendance screen with camera and pass user username
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (context) => SelfAttendanceScreen(email: widget.email),
+        builder: (context) => SelfAttendanceScreen(email: widget.username),
       ),
     );
   }
@@ -96,16 +144,16 @@ class _HomeScreenState extends State<HomeScreen> {
   /// Endpoint: GET /api/attendance/logs
   /// This should fetch attendance history/logs
   void _viewAttendanceLogs() {
-    // Navigate to attendance logs screen with user email
+    // Navigate to attendance logs screen with user username
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (context) => AttendanceLogsScreen(email: widget.email),
+        builder: (context) => AttendanceLogsScreen(email: widget.username),
       ),
     );
   }
 
   void _handleProfileImageEdit() {
-    // Navigate to Update Profile Photo Screen
+    // Navigate to Update Profile Photo Screen with actual user data
     Navigator.of(context)
         .push(
           MaterialPageRoute(
@@ -119,6 +167,7 @@ class _HomeScreenState extends State<HomeScreen> {
         .then((updated) {
           // If profile was updated, refresh the home screen
           if (updated == true) {
+            print('[HomeScreen] Profile photo updated, refreshing...');
             setState(() {
               // Re-fetch user profile to get updated image
               _fetchUserProfile();
@@ -241,16 +290,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                 ),
                                 color: Colors.grey[300],
                               ),
-                              child: userProfileImage != null
-                                  ? Image.network(
-                                      userProfileImage!,
-                                      fit: BoxFit.cover,
-                                    )
-                                  : const Icon(
-                                      Icons.person,
-                                      size: 40,
-                                      color: Color(0xFF6B5B95),
-                                    ),
+                              child: _buildProfileImage(userProfileImage),
                             ),
                             // Camera Icon Button
                             GestureDetector(
@@ -472,16 +512,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                 ),
                                 color: Colors.grey[300],
                               ),
-                              child: userProfileImage != null
-                                  ? Image.network(
-                                      userProfileImage!,
-                                      fit: BoxFit.cover,
-                                    )
-                                  : const Icon(
-                                      Icons.person,
-                                      size: 60,
-                                      color: Color(0xFF6B5B95),
-                                    ),
+                              child: _buildProfileImage(userProfileImage),
                             ),
                             // Camera Icon Button
                             GestureDetector(
